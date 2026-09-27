@@ -6,7 +6,7 @@ An order touches three services (orders, inventory, payments) and must end in ex
 
 **Decisions inside the saga**
 - *Business failures are handled outcomes.* Out-of-stock (HTTP 409) and declined (402) end with the order `FAILED` and the execution `SUCCEEDED`; only an unexpected crash makes an execution `FAILED`, and only that pages (alert). This keeps the alert meaningful.
-- *Retry only what is retryable.* `http.default_retry_predicate` (429/502/503/504) with 1→10 s exponential backoff, 4 retries; a 402 is not retried.
+- *Retry only what is retryable.* Every service call goes through one `send` subworkflow that retries 429/500/502/503/504 (5 retries, 1→15 s exponential backoff); 4xx business answers (402 declined, 409 out of stock) are never retried. Every callee is idempotent, so retrying is safe. (The first version retried only the payment call; a 40-way burst then crashed 3 sagas on `reserve` — see [runbook 05](../runbooks/05-incident-response.md).)
 - *Compensate what was done.* Payment failure releases the reservation; out-of-stock has nothing to release and never reaches payments.
 - *orders-api stays the single writer of order state:* the saga PATCHes status through an internal endpoint rather than writing Firestore itself.
 

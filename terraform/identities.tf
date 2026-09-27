@@ -99,7 +99,7 @@ resource "google_service_account_iam_member" "operator_client" {
 }
 
 resource "google_project_iam_member" "operator" {
-  for_each = toset(["roles/iam.serviceAccountUser", "roles/run.developer", "roles/workflows.viewer"])
+  for_each = toset(["roles/run.developer", "roles/workflows.viewer"])
   project  = var.project_id
   role     = each.value
   member   = "user:${var.admin_email}"

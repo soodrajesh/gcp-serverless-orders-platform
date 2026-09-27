@@ -43,6 +43,14 @@ def order_id_for(idem_key: str) -> str:
     return str(uuid.uuid5(NAMESPACE, idem_key))
 
 
+def valid_id(oid: str) -> bool:
+    """Order ids are UUIDs we generated. Anything else (path tricks, slashes, junk) is a 404, never a Firestore call."""
+    try:
+        return str(uuid.UUID(oid)) == oid.lower()
+    except (ValueError, AttributeError):
+        return False
+
+
 def public_view(d: dict) -> dict:
     return {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in d.items()}
 
@@ -79,12 +87,18 @@ def create():
         ref.create(doc)
     except AlreadyExists:
         return jsonify(public_view(ref.get().to_dict())), 200
-    publisher().publish(os.environ["TOPIC"], json.dumps({"order_id": oid}).encode()).result(timeout=30)
+    try:
+        publisher().publish(os.environ["TOPIC"], json.dumps({"order_id": oid}).encode()).result(timeout=30)
+    except Exception:  # noqa: BLE001 - the event never left: undo the order so the client's retry starts clean
+        ref.delete()
+        return jsonify(error="could not enqueue the order, please retry with the same Idempotency-Key"), 503
     return jsonify(order_id=oid, status="PENDING"), 202
 
 
 @app.get("/orders/<oid>")
 def get_order(oid):
+    if not valid_id(oid):
+        return jsonify(error="not found"), 404
     snap = db().collection("orders").document(oid).get()
     if not snap.exists:
         return jsonify(error="not found"), 404
@@ -98,6 +112,8 @@ def internal_get(oid):
 
 @app.patch("/internal/orders/<oid>/status")
 def set_status(oid):
+    if not valid_id(oid):
+        return jsonify(error="not found"), 404
     b = request.get_json(silent=True) or {}
     if b.get("status") not in STATUSES:
         return jsonify(error="bad status"), 400

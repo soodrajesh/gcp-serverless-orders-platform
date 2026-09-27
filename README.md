@@ -2,7 +2,7 @@
 
 An event-driven **order-processing platform with no servers to run**: a JWT-protected **API Gateway** in front of **Cloud Run**, orders accepted with `202` and processed by a **Cloud Workflows saga** (reserve stock → charge → confirm) that **retries** transient failures and **compensates** business failures, on **Firestore**. Provisioned and destroyed by **one script each**, with every claim asserted against the running system — including a concurrency test that races 120 orders for 60 units.
 
-> **Status: deployed and verified live** (europe-west1, 2026-09-27). `./scripts/up.sh` builds it in two Terraform phases and [`scripts/test.sh`](scripts/test.sh) passes **47 of 47** ([results](docs/test-results.md)). The fresh build also *found a real bug* (saga crashes under contention) that is fixed and documented in [runbook 05](docs/runbooks/05-incident-response.md). The stack was then removed with `./scripts/down.sh`.
+> **Status: deployed and verified live** (europe-west1, 2026-09-27). `./scripts/up.sh` builds it in two Terraform phases and [`scripts/test.sh`](scripts/test.sh) passes **49 of 49** ([results](docs/test-results.md)). The fresh build also *found a real bug* (saga crashes under contention) that is fixed and documented in [runbook 05](docs/runbooks/05-incident-response.md). The stack was then removed with `./scripts/down.sh`.
 
 ```bash
 gcloud config set project <your-project>      # billing linked; the rest is auto-detected
@@ -15,7 +15,7 @@ gcloud config set project <your-project>      # billing linked; the rest is auto
 | | |
 |---|---|
 | ![test suite](docs/img/live-test-suite.png) | ![stress](docs/img/live-stress.png) |
-| **`scripts/test.sh`** — 47 checks: edge auth, happy path, both compensations, retry, idempotency, overselling, security | **120 orders race for 60 units** → exactly 60 confirmed, 60 out-of-stock, stock 0, every saga `SUCCEEDED` |
+| **`scripts/test.sh`** — 49 checks: edge auth, happy path, both compensations, retry, idempotency, overselling, security | **120 orders race for 60 units** → exactly 60 confirmed, 60 out-of-stock, stock 0, every saga `SUCCEEDED` |
 
 | | |
 |---|---|
@@ -34,7 +34,7 @@ The Cloud Console views are not included: the console needs an interactive Googl
 | Concern | Mechanism | Proven by |
 |---|---|---|
 | **Only a known client gets in** | Gateway verifies a JWT *signed by* `sop-client` (issuer, keys, audience) | test §2: 401/403 with reasons; valid → 202 |
-| **No back doors** | Nothing public; `/internal/*` not in the API spec; per-service invokers | test §2, §10 |
+| **No back doors** | Nothing public; `/internal/*` not in the API spec; per-service invokers; order ids validated as UUIDs (junk / path-traversal ids → 404, never reach Firestore or 500) | test §2, §10 |
 | **Async, safe API** | `202` + poll; mandatory `Idempotency-Key` → same order, no second event | test §3, §7 |
 | **Business failures don't crash** | Out of stock / declined → compensate, order `FAILED` with reason, execution `SUCCEEDED` | test §4, §5 |
 | **Transient failures are absorbed** | Flaky payments (503) retried with backoff → still `CONFIRMED`, 2 attempts | test §6 |
@@ -78,7 +78,7 @@ Well under €1 for a full build–test–teardown; Cloud Run scales to zero; a 
 
 ## Known gaps (deliberate)
 
-No end-user authentication (Identity Platform) · no per-client quotas (needs API keys) · no WAF (needs a load balancer) · saga state lives in Workflows + Firestore, not an outbox (a crash between "create order" and "publish" would leave a `PENDING` order; see runbook 05 for re-driving) · single region · payments/inventory are simulated.
+No end-user authentication (Identity Platform) · no per-client quotas (needs API keys) · no WAF (needs a load balancer) · no transactional outbox: a failed publish is undone (503, retry with the same key), but a process crash *between* creating the order and publishing would still leave a `PENDING` order (see runbook 05 for re-driving) · single region · payments/inventory are simulated.
 
 ## License
 

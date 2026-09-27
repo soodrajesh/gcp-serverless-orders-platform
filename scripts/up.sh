@@ -15,7 +15,7 @@ tf_init
 
 log "2/6 Phase 1: Firestore, Pub/Sub, IAM, monitoring, registry"
 # Re-runs must not tear down phase-2 resources (gateway = ~10 min to rebuild): keep the previous image during phase 1.
-[ -s "$ROOT/.last-image" ] && export TF_VAR_image="$(cat "$ROOT/.last-image")"
+if [ -s "$ROOT/.last-image" ]; then TF_VAR_image="$(cat "$ROOT/.last-image")"; export TF_VAR_image; fi
 $TF apply -input=false -auto-approve
 out() { $TF output -raw "$1"; }
 REPO="$(out artifact_repo)"; BUCKET="$(out build_bucket)"; BUILD_SA="$(out build_sa)"
@@ -36,8 +36,8 @@ ok "applied"
 log "5/6 Seed stock"
 INV="$(out inventory_url)"
 wait_for "inventory answers" 120 bash -c "curl -fsS -H \"Authorization: Bearer \$(gcloud auth print-identity-token)\" $INV/health"
-for sku in WIDGET:1000; do curl -fsS -X PUT "$INV/stock/${sku%%:*}" -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
-  -H 'Content-Type: application/json' -d "{\"qty\": ${sku##*:}}" >/dev/null && ok "stock ${sku%%:*} = ${sku##*:}"; done
+curl -fsS -X PUT "$INV/stock/WIDGET" -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  -H 'Content-Type: application/json' -d '{"qty": 1000}' >/dev/null && ok "stock WIDGET = 1000"
 
 if [ "$SKIP_TESTS" = 1 ]; then log "Skipping tests"; else log "6/6 Live test suite"; "$ROOT/scripts/test.sh"; fi
 log "DONE — tear down with ./scripts/down.sh"

@@ -6,7 +6,7 @@ payments   https://payments-mumqq56yxq-ew.a.run.app
 
 $ gcloud api-gateway gateways list
 GATEWAY        DEFAULT_HOSTNAME                       STATE
-orders-6126d8  orders-6126d8-3hfl3sfk.ew.gateway.dev  ACTIVE
+orders-099e9d  orders-099e9d-3hfl3sfk.ew.gateway.dev  ACTIVE
 
 $ gcloud workflows describe order-saga
 name: order-saga

@@ -1,11 +1,11 @@
 # Live test results
 
-Captured by `scripts/test.sh` on 2026-09-27T00:49:27Z against project `claude-code-507112` (europe-west1).
+Captured by `scripts/test.sh` on 2026-09-27T03:06:22Z against project `claude-code-507112` (europe-west1).
 
 ```
 
 ── 1. Topology ──
-  PASS  API Gateway is ACTIVE  [orders-6126d8	ACTIVE ]
+  PASS  API Gateway is ACTIVE  [orders-099e9d	ACTIVE ]
   PASS  workflow order-saga is ACTIVE  [ACTIVE ]
   PASS  Eventarc trigger routes Pub/Sub -> workflow  [projects/claude-code-507112/locations/europe-west1/workflows/order-saga ]
   PASS  three Cloud Run services deployed  [inventory orders payments  ]
@@ -21,6 +21,8 @@ Captured by `scripts/test.sh` on 2026-09-27T00:49:27Z against project `claude-co
   PASS  internal routes are not exposed by the gateway (404)  [404 ]
   PASS  orders-api called directly without a token -> 403  [403 ]
   PASS  inventory called directly without a token -> 403  [403 ]
+  PASS  junk order id -> 404, not a 500 from Firestore  [404 ]
+  PASS  path-traversal attempt in the id -> 4xx, never a 5xx  [404 ]
   PASS  invalid order (qty 0) -> 400 with a reason  [400 ]
   PASS  missing Idempotency-Key -> 400  [400 ]
 
@@ -45,14 +47,14 @@ Captured by `scripts/test.sh` on 2026-09-27T00:49:27Z against project `claude-co
 
 ── 7. Idempotency: a client retry cannot create a second order or double-reserve ──
   PASS  first call -> 202, retry -> 200  [202 200 ]
-  PASS  both calls return the same order id  [63da3c69-38a2-55f6-beab-8fc47cf9fbd3 ]
+  PASS  both calls return the same order id  [acd6203e-7857-5d22-90b3-3a91eb04629f ]
   PASS  stock decremented once, not twice  [996 ]
 
 ── 8. No overselling under concurrency: 40 orders race for 25 units ──
-    {"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.48, "p95_s": 2.6}
-  PASS  exactly 25 confirmed  [{"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.48, "p95_s": 2.6} ]
-  PASS  exactly 15 failed OUT_OF_STOCK  [{"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.48, "p95_s": 2.6} ]
-  PASS  no other outcome (no timeouts, no rejects)  [{"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.48, "p95_s": 2.6} ]
+    {"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.53, "p95_s": 2.76}
+  PASS  exactly 25 confirmed  [{"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.53, "p95_s": 2.76}]
+  PASS  exactly 15 failed OUT_OF_STOCK  [{"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.53, "p95_s": 2.76}]
+  PASS  no other outcome (no timeouts, no rejects)  [{"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.53, "p95_s": 2.76}]
   PASS  stock ended at exactly 0 (never negative)  [0 ]
 
 ── 9. Saga executions ──
@@ -76,4 +78,4 @@ Captured by `scripts/test.sh` on 2026-09-27T00:49:27Z against project `claude-co
   PASS  dashboard exists  [Serverless orders platform ]
 ```
 
-**Result: 47 passed, 0 failed.**
+**Result: 49 passed, 0 failed.**

@@ -63,6 +63,10 @@ check "a Google ID token (issuer accounts.google.com) is not the client identity
 check "internal routes are not exposed by the gateway (404)" '^404$' "$(code "$(gw "https://$GW/internal/orders/x" -H "Authorization: Bearer $JWT")")"
 check "orders-api called directly without a token -> 403" '^403$' "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$ORD/orders")"
 check "inventory called directly without a token -> 403" '^403$' "$(curl -s -o /dev/null -w '%{http_code}' "$INV/stock/WIDGET")"
+r=$(gw "https://$GW/orders/not-a-uuid" -H "Authorization: Bearer $JWT")
+check "junk order id -> 404, not a 500 from Firestore" '^404$' "$(code "$r")"
+r=$(gw "https://$GW/orders/..%2Finternal%2Forders%2Fx" -H "Authorization: Bearer $JWT")
+check "path-traversal attempt in the id -> 4xx, never a 5xx" '^4[0-9][0-9]$' "$(code "$r")"
 r=$(order "bad-$RUN" '{"sku":"WIDGET","qty":0,"amount":5,"customer":"x"}')
 check "invalid order (qty 0) -> 400 with a reason" '^400$' "$(code "$r")"
 r=$(gw -X POST "https://$GW/orders" -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' -d '{"sku":"WIDGET","qty":1,"amount":5,"customer":"x"}')

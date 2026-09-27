@@ -1,21 +1,21 @@
 # Three orders through the saga (stock DEMO = 10)
 
 $ POST /orders  {sku: DEMO, qty: 2, amount: 50, customer: ana}
-{"order_id":"df149d9d-4b71-56e9-ba22-c10eda84663c","status":"PENDING"}
+{"order_id":"ee1abd6c-a969-58d9-8404-f7fc999d245b","status":"PENDING"}
 $ GET /orders/$id  (polled until the saga finishes)
-{"order_id": "df149d9d-4b71-56e9-ba22-c10eda84663c", "sku": "DEMO", "qty": 2, "amount": 50.0, "customer": "ana", "status": "CONFIRMED"}
+{"order_id": "ee1abd6c-a969-58d9-8404-f7fc999d245b", "sku": "DEMO", "qty": 2, "amount": 50.0, "customer": "ana", "status": "CONFIRMED"}
 
 $ POST /orders  {sku: DEMO, qty: 3, amount: 5000, customer: ana}   # over the 1000 limit
-{"order_id":"def29721-e65a-53c4-ac7c-4728cfbff8cc","status":"PENDING"}
+{"order_id":"63f0d364-d984-5e6e-aba0-a1321d2cf622","status":"PENDING"}
 $ GET /orders/$id
-{"order_id": "def29721-e65a-53c4-ac7c-4728cfbff8cc", "sku": "DEMO", "qty": 3, "amount": 5000.0, "customer": "ana", "status": "FAILED", "reason": "PAYMENT_DECLINED"}
+{"order_id": "63f0d364-d984-5e6e-aba0-a1321d2cf622", "sku": "DEMO", "qty": 3, "amount": 5000.0, "customer": "ana", "status": "FAILED", "reason": "PAYMENT_DECLINED"}
 $ stock DEMO after both (10 - 2 = 8; the declined order's 3 units were released):
 {"qty":8,"sku":"DEMO"}
 
 
 $ POST /orders  {sku: DEMO, qty: 999, amount: 10, customer: ana}
-{"order_id":"ba2cf45d-51e9-5501-a535-081fd10a85f9","status":"PENDING"}
+{"order_id":"88c3ff62-959e-5849-b8d0-81c96180c7d2","status":"PENDING"}
 $ GET /orders/$id
-{"order_id": "ba2cf45d-51e9-5501-a535-081fd10a85f9", "sku": "DEMO", "qty": 999, "amount": 10.0, "customer": "ana", "status": "FAILED", "reason": "OUT_OF_STOCK"}
+{"order_id": "88c3ff62-959e-5849-b8d0-81c96180c7d2", "sku": "DEMO", "qty": 999, "amount": 10.0, "customer": "ana", "status": "FAILED", "reason": "OUT_OF_STOCK"}
 $ POST the first order again with the same Idempotency-Key
 same order id returned: True | status CONFIRMED

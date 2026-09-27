@@ -4,7 +4,7 @@
 source "$(dirname "$0")/lib.sh"; set +e
 E="$ROOT/docs/evidence"; TMP="$ROOT/.test-tmp"; mkdir -p "$E" "$TMP"; P="$PROJECT_ID"
 out() { $TF output -raw "$1"; }
-GW="$(out gateway_host)"; INV="$(out inventory_url)"; PAY="$(out payments_url)"; CLIENT="$(out client_sa)"
+GW="$(out gateway_host)"; INV="$(out inventory_url)"; CLIENT="$(out client_sa)"
 OPT="$(gcloud auth print-identity-token 2>/dev/null | tail -1)"
 jwt() { local now; now=$(date +%s)
   python3 -c "import json; print(json.dumps({'iss':'$CLIENT','sub':'$CLIENT','aud':'${1:-sop-orders-api}','iat':$now,'exp':$now+3000}))" > "$TMP/c.json"

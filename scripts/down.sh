@@ -8,7 +8,7 @@ PURGE=0; [ "${1:-}" = "--purge" ] && PURGE=1
 
 log "Project $PROJECT_ID — destroying everything managed by this repo"
 tf_init
-export TF_VAR_image="$(cat "$ROOT/.last-image" 2>/dev/null || echo "")"
+TF_VAR_image="$(cat "$ROOT/.last-image" 2>/dev/null || echo "")"; export TF_VAR_image
 # a workflow created with deletion protection (older state) must be unprotected before it can be destroyed
 $TF apply -input=false -auto-approve -target=google_workflows_workflow.saga >/dev/null 2>&1 || true
 log "1/2 Terraform destroy (gateway, trigger, workflow, Cloud Run, Firestore database incl. data, topic, registry, bucket)"
@@ -25,7 +25,7 @@ if [ "$PURGE" = 1 ]; then
 else log "2/2 Kept state bucket gs://$STATE_BUCKET (a few KB; --purge removes it)"; fi
 
 log "Anything billable left?"
-echo "  Cloud Run services: $(gcloud run services list --project "$PROJECT_ID" --format='value(name)' 2>/dev/null | wc -l | tr -d ' ')"
+echo "  Cloud Run (orders/inventory/payments): $(gcloud run services list --project "$PROJECT_ID" --format='value(name)' 2>/dev/null | grep -cxE 'orders|inventory|payments' || true)"
 echo "  Workflows:          $(gcloud workflows list --location "$REGION" --project "$PROJECT_ID" --format='value(name)' 2>/dev/null | wc -l | tr -d ' ')"
 echo "  API gateways:       $(gcloud api-gateway gateways list --project "$PROJECT_ID" --format='value(name)' 2>/dev/null | wc -l | tr -d ' ')"
 echo "  Eventarc triggers:  $(gcloud eventarc triggers list --location "$REGION" --project "$PROJECT_ID" --format='value(name)' 2>/dev/null | wc -l | tr -d ' ')"
