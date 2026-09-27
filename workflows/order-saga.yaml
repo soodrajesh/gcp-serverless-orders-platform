@@ -1,0 +1,131 @@
+# Order saga: reserve stock -> charge -> confirm, with retries and compensation.
+# Business failures (out of stock, declined) are *handled outcomes*: the order ends FAILED and the
+# execution SUCCEEDS. Only an unexpected crash makes an execution FAILED (and pages someone).
+# Every service call is idempotent, so every call is retried on transient errors (429/500/502/503/504).
+main:
+  params: [event]
+  steps:
+    - decode:
+        assign:
+          - msg: $${json.decode(text.decode(base64.decode(event.data.message.data)))}
+          - order_id: $${msg.order_id}
+          - orders: "${orders_url}"
+          - inventory: "${inventory_url}"
+          - payments: "${payments_url}"
+    - get_order:
+        try:
+          call: http.get
+          args:
+            url: $${orders + "/internal/orders/" + order_id}
+            auth: {type: OIDC, audience: "${orders_url}"}
+          result: order_resp
+        retry:
+          predicate: $${retry_transient}
+          max_retries: 5
+          backoff: {initial_delay: 1, max_delay: 15, multiplier: 2}
+    - set_order:
+        assign:
+          - order: $${order_resp.body}
+    - already_done:
+        switch:
+          - condition: $${order.status != "PENDING"}
+            return: '$${"skipped: order already " + order.status}'
+    - reserve_stock:
+        try:
+          call: send
+          args:
+            url: $${inventory + "/reserve"}
+            audience: "${inventory_url}"
+            method: POST
+            body: {order_id: '$${order_id}', sku: '$${order.sku}', qty: '$${order.qty}'}
+          result: reserved
+        except:
+          as: e
+          steps:
+            - out_of_stock:
+                switch:
+                  - condition: $${map.get(e, "code") == 409}
+                    steps:
+                      - fail_no_stock:
+                          call: send
+                          args:
+                            url: $${orders + "/internal/orders/" + order_id + "/status"}
+                            audience: "${orders_url}"
+                            method: PATCH
+                            body: {status: FAILED, reason: OUT_OF_STOCK}
+                      - return_no_stock:
+                          return: "failed: OUT_OF_STOCK"
+            - reraise_reserve:
+                raise: $${e}
+    - charge:
+        try:
+          call: send
+          args:
+            url: $${payments + "/charge"}
+            audience: "${payments_url}"
+            method: POST
+            body: {order_id: '$${order_id}', amount: '$${order.amount}', customer: '$${order.customer}'}
+          result: charged
+        except:
+          as: e
+          steps:
+            - compensate_release:
+                call: send
+                args:
+                  url: $${inventory + "/release"}
+                  audience: "${inventory_url}"
+                  method: POST
+                  body: {order_id: '$${order_id}'}
+            - decide_reason:
+                switch:
+                  - condition: $${map.get(e, "code") == 402}
+                    assign:
+                      - reason: PAYMENT_DECLINED
+                    next: mark_failed
+            - other_reason:
+                assign:
+                  - reason: PAYMENT_ERROR
+            - mark_failed:
+                call: send
+                args:
+                  url: $${orders + "/internal/orders/" + order_id + "/status"}
+                  audience: "${orders_url}"
+                  method: PATCH
+                  body: {status: FAILED, reason: '$${reason}'}
+            - return_failed:
+                return: '$${"failed: " + reason + " (stock released)"}'
+    - confirm:
+        call: send
+        args:
+          url: $${orders + "/internal/orders/" + order_id + "/status"}
+          audience: "${orders_url}"
+          method: PATCH
+          body: {status: CONFIRMED}
+    - done:
+        return: "confirmed"
+
+# One retrying call with OIDC auth. 4xx business answers (402, 409, 404) are NOT retried.
+send:
+  params: [url, audience, method, body]
+  steps:
+    - request:
+        try:
+          call: http.request
+          args:
+            method: $${method}
+            url: $${url}
+            auth: {type: OIDC, audience: '$${audience}'}
+            body: $${body}
+          result: resp
+        retry:
+          predicate: $${retry_transient}
+          max_retries: 5
+          backoff: {initial_delay: 1, max_delay: 15, multiplier: 2}
+    - done:
+        return: $${resp}
+
+retry_transient:
+  params: [e]
+  steps:
+    - decide:
+        return: $${map.get(e, "code") in [429, 500, 502, 503, 504]}

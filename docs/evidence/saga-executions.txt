@@ -1,0 +1,15 @@
+$ gcloud workflows executions list order-saga --limit 5   # STATE per run ('result' is only shown by describe)
+EXECUTION                             STATE      DURATION
+fe59648a-cc8c-4994-98b2-f87eb82f327d  SUCCEEDED  0.347076376s
+c07abcda-d1fa-4497-bd9c-aa95fe98a548  SUCCEEDED  0.361778516s
+49628ab6-93fd-4bb2-9cfd-605993b8a88b  SUCCEEDED  0.383618538s
+7dc242ef-0d72-47c1-9f30-ef8f8a3ea7ce  SUCCEEDED  0.357208533s
+7027f93c-2927-470d-974c-f34812745472  SUCCEEDED  0.416572884s
+
+$ for every execution: gcloud workflows executions describe <id> --format='value(result)' | sort | uniq -c   # the saga's own verdicts
+  89 "confirmed"
+  77 "failed: OUT_OF_STOCK"
+   2 "failed: PAYMENT_DECLINED (stock released)"
+
+$ executions by state
+ 168 SUCCEEDED

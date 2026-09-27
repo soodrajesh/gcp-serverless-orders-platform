@@ -1,0 +1,59 @@
+swagger: "2.0"
+info:
+  title: Orders API
+  version: "1.0.0"
+schemes: [https]
+produces: [application/json]
+consumes: [application/json]
+x-google-backend:
+  address: ${orders_url}
+  protocol: h2
+securityDefinitions:
+  client_jwt:
+    authorizationUrl: ""
+    flow: implicit
+    type: oauth2
+    x-google-issuer: "${client_sa}"
+    x-google-jwks_uri: "https://www.googleapis.com/robot/v1/metadata/jwk/${client_sa}"
+    x-google-audiences: "${audience}"
+security:
+  - client_jwt: []
+paths:
+  /orders:
+    post:
+      operationId: createOrder
+      summary: "Create an order (asynchronous, returns 202 and the saga runs behind it)"
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/NewOrder"
+      responses:
+        "200": {description: Existing order for this idempotency key}
+        "202": {description: Accepted}
+        "400": {description: Invalid order}
+  /orders/{order_id}:
+    get:
+      operationId: getOrder
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "200": {description: The order and its current status}
+        "404": {description: Not found}
+definitions:
+  NewOrder:
+    type: object
+    required: [sku, qty, amount, customer]
+    properties:
+      sku: {type: string}
+      qty: {type: integer, minimum: 1}
+      amount: {type: number}
+      customer: {type: string}

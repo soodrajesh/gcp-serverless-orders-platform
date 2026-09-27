@@ -1,0 +1,5 @@
+$ loadtest: 120 concurrent orders for 60 units of STRESS1790470276
+{"orders": 120, "confirmed": 60, "failed_out_of_stock": 60, "other": 0, "p50_s": 1.31, "p95_s": 2.49}
+$ final stock of STRESS1790470276: {"qty":0,"sku":"STRESS1790470276"}
+$ saga executions by state:
+ 168 SUCCEEDED

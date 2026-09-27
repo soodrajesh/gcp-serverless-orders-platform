@@ -1,0 +1,13 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!example.tfvars
+.venv/
+__pycache__/
+.DS_Store
+deploy.env
+*.pem
+*.key
+.test-tmp/
+.last-image

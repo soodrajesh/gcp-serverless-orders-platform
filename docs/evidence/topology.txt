@@ -1,0 +1,19 @@
+$ gcloud run services list
+SERVICE    URL
+inventory  https://inventory-mumqq56yxq-ew.a.run.app
+orders     https://orders-mumqq56yxq-ew.a.run.app
+payments   https://payments-mumqq56yxq-ew.a.run.app
+
+$ gcloud api-gateway gateways list
+GATEWAY        DEFAULT_HOSTNAME                       STATE
+orders-6126d8  orders-6126d8-3hfl3sfk.ew.gateway.dev  ACTIVE
+
+$ gcloud workflows describe order-saga
+name: order-saga
+serviceAccount: sop-saga@claude-code-507112.iam.gserviceaccount.com
+state: ACTIVE
+
+$ gcloud eventarc triggers list
+TRIGGER                WORKFLOW    TOPIC
+order-created-to-saga  order-saga  order-events
+

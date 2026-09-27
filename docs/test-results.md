@@ -1,0 +1,79 @@
+# Live test results
+
+Captured by `scripts/test.sh` on 2026-09-27T00:49:27Z against project `claude-code-507112` (europe-west1).
+
+```
+
+── 1. Topology ──
+  PASS  API Gateway is ACTIVE  [orders-6126d8	ACTIVE ]
+  PASS  workflow order-saga is ACTIVE  [ACTIVE ]
+  PASS  Eventarc trigger routes Pub/Sub -> workflow  [projects/claude-code-507112/locations/europe-west1/workflows/order-saga ]
+  PASS  three Cloud Run services deployed  [inventory orders payments  ]
+
+── 2. The edge: only a signed client gets in ──
+  PASS  no token -> 401 (Jwt is missing)  [401 ]
+  PASS  …reason  [{"code":401,"message":"Jwt is missing"} ]
+  PASS  garbage token -> 401  [401 ]
+  PASS  valid signature but wrong audience -> 403 (Audiences in Jwt are not allowed)  [403 ]
+  PASS  …reason  [{"code":403,"message":"Audiences in Jwt are not allowed"} ]
+  PASS  a Google ID token (issuer accounts.google.com) is not the client identity -> 401  [401 ]
+  PASS  …reason  [{"code":401,"message":"Jwt issuer is not configured"} ]
+  PASS  internal routes are not exposed by the gateway (404)  [404 ]
+  PASS  orders-api called directly without a token -> 403  [403 ]
+  PASS  inventory called directly without a token -> 403  [403 ]
+  PASS  invalid order (qty 0) -> 400 with a reason  [400 ]
+  PASS  missing Idempotency-Key -> 400  [400 ]
+
+── 3. Happy path: reserve -> charge -> confirm ──
+  PASS  POST /orders -> 202 Accepted  [202 ]
+  PASS  order reaches CONFIRMED via the saga  [CONFIRMED ]
+  PASS  stock decremented by exactly 2  [998 ]
+  PASS  payment recorded as CHARGED on the first attempt  [CHARGED 1 ]
+
+── 4. Compensation: out of stock (nothing charged) ──
+  PASS  order FAILED with reason OUT_OF_STOCK  [FAILED ]
+  PASS  …reason recorded  [OUT_OF_STOCK ]
+  PASS  no payment was ever attempted  [404 ]
+
+── 5. Compensation: payment declined (stock released) ──
+  PASS  order FAILED with reason PAYMENT_DECLINED  [PAYMENT_DECLINED ]
+  PASS  reserved stock was released: back to 998  [998 ]
+
+── 6. Resilience: a flaky payment provider is retried by Workflows ──
+  PASS  order still reaches CONFIRMED  [CONFIRMED ]
+  PASS  payments saw 2 attempts (503 then success)  [CHARGED 2 ]
+
+── 7. Idempotency: a client retry cannot create a second order or double-reserve ──
+  PASS  first call -> 202, retry -> 200  [202 200 ]
+  PASS  both calls return the same order id  [63da3c69-38a2-55f6-beab-8fc47cf9fbd3 ]
+  PASS  stock decremented once, not twice  [996 ]
+
+── 8. No overselling under concurrency: 40 orders race for 25 units ──
+    {"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.48, "p95_s": 2.6}
+  PASS  exactly 25 confirmed  [{"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.48, "p95_s": 2.6} ]
+  PASS  exactly 15 failed OUT_OF_STOCK  [{"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.48, "p95_s": 2.6} ]
+  PASS  no other outcome (no timeouts, no rejects)  [{"orders": 40, "confirmed": 25, "failed_out_of_stock": 15, "other": 0, "p50_s": 2.48, "p95_s": 2.6} ]
+  PASS  stock ended at exactly 0 (never negative)  [0 ]
+
+── 9. Saga executions ──
+    execution states:  45 SUCCEEDED;
+  PASS  sagas SUCCEEDED (business failures are handled outcomes)  [ 45 SUCCEEDED; ]
+  PASS  no saga execution crashed (FAILED)  [absent: FAILED]
+
+── 10. Service security ──
+  PASS  orders: sop-gateway may invoke  [serviceAccount:sop-gateway@claude-code-507112.iam.gserviceaccount.com, serviceAccount:sop-saga@claud]
+  PASS  orders: sop-saga may invoke  [serviceAccount:sop-gateway@claude-code-507112.iam.gserviceaccount.com, serviceAccount:sop-saga@claud]
+  PASS  orders: not public (no allUsers)  [absent: allUsers]
+  PASS  inventory: sop-saga may invoke  [serviceAccount:sop-saga@claude-code-507112.iam.gserviceaccount.com ]
+  PASS  inventory: not public (no allUsers)  [absent: allUsers]
+  PASS  payments: sop-saga may invoke  [serviceAccount:sop-saga@claude-code-507112.iam.gserviceaccount.com ]
+  PASS  payments: not public (no allUsers)  [absent: allUsers]
+  PASS  no user-managed service-account keys exist  [0 ]
+
+── 11. Operability ──
+  PASS  saga-failure alert exists  [Orders: saga execution FAILED (unexpected, not a business decline) Orders: API 5xx rate ]
+  PASS  API 5xx alert exists  [Orders: saga execution FAILED (unexpected, not a business decline) Orders: API 5xx rate ]
+  PASS  dashboard exists  [Serverless orders platform ]
+```
+
+**Result: 47 passed, 0 failed.**

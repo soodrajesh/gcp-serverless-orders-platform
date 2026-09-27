@@ -1,0 +1,19 @@
+# API Gateway: who gets in (host orders-6126d8-3hfl3sfk.ew.gateway.dev)
+
+$ curl -i .../orders/x                                    # no token
+HTTP/2 401 
+{"code":401,"message":"Jwt is missing"}
+
+$ curl .../orders/x -H 'Authorization: Bearer <Google ID token of the operator>'
+{"code":401,"message":"Jwt issuer is not configured"}
+ [HTTP 401]
+
+$ curl .../orders/x -H 'Authorization: Bearer <JWT signed by sop-client, aud=other-audience>'
+{"code":403,"message":"Audiences in Jwt are not allowed"}
+ [HTTP 403]
+
+$ curl .../internal/orders/x -H 'Authorization: Bearer <valid client JWT>'   # not in the OpenAPI spec
+[HTTP 404]
+
+$ curl -X POST <orders-api Cloud Run URL>/orders            # bypassing the gateway
+[HTTP 403]
