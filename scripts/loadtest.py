@@ -11,7 +11,6 @@ import urllib.error
 import urllib.request
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 
 host, jwt, sku, n = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
 amount = float(sys.argv[5]) if len(sys.argv) > 5 else 25.0
@@ -49,7 +48,7 @@ with ThreadPoolExecutor(max_workers=20) as ex:
     res = list(ex.map(one, range(n)))
 
 secs = sorted(r["secs"] for r in res if r.get("status") == "CONFIRMED")
-q = lambda p: secs[min(len(secs) - 1, int(len(secs) * p))] if secs else None  # noqa: E731
+q = lambda p: secs[min(len(secs) - 1, int(len(secs) * p))] if secs else None
 print(json.dumps({
     "orders": n,
     "confirmed": sum(r["status"] == "CONFIRMED" for r in res),

@@ -8,7 +8,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from archlib import Diagram  # noqa: E402
+from archlib import Diagram
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "img", "architecture.svg")
 
