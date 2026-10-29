@@ -4,3 +4,4 @@ pythonpath = ["."]
 
 [tool.ruff]
 line-length = 130
+extend-exclude = ["docs/diagrams"]  # generator scripts for the architecture SVGs, not product code
