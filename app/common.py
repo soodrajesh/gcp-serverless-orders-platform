@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 _db = None
 
@@ -14,4 +14,4 @@ def db():
 
 
 def now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
